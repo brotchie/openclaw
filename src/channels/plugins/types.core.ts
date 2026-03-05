@@ -135,6 +135,7 @@ export type ChannelAccountSnapshot = {
   audience?: string;
   webhookPath?: string;
   webhookUrl?: string;
+  pubsubSubscription?: string;
   baseUrl?: string;
   allowUnmentionedGroups?: boolean;
   cliPath?: string | null;

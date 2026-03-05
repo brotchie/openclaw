@@ -15,19 +15,25 @@ export type GoogleChatMonitorOptions = {
   abortSignal: AbortSignal;
   webhookPath?: string;
   webhookUrl?: string;
+  pubsubSubscription?: string;
+  pubsubMaxMessages?: number;
   statusSink?: (patch: { lastInboundAt?: number; lastOutboundAt?: number }) => void;
 };
 
 export type GoogleChatCoreRuntime = ReturnType<typeof getGoogleChatRuntime>;
 
-export type WebhookTarget = {
+/** Shared context for processing Google Chat events (transport-agnostic). */
+export type GoogleChatEventContext = {
   account: ResolvedGoogleChatAccount;
   config: OpenClawConfig;
   runtime: GoogleChatRuntimeEnv;
   core: GoogleChatCoreRuntime;
+  statusSink?: (patch: { lastInboundAt?: number; lastOutboundAt?: number }) => void;
+  mediaMaxMb: number;
+};
+
+export type WebhookTarget = GoogleChatEventContext & {
   path: string;
   audienceType?: GoogleChatAudienceType;
   audience?: string;
-  statusSink?: (patch: { lastInboundAt?: number; lastOutboundAt?: number }) => void;
-  mediaMaxMb: number;
 };

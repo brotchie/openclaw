@@ -7,7 +7,7 @@ title: "Google Chat"
 
 # Google Chat (Chat API)
 
-Status: ready for DMs + spaces via Google Chat API webhooks (HTTP only).
+Status: ready for DMs + spaces via Google Chat API webhooks (HTTP) or Cloud Pub/Sub.
 
 ## Quick setup (beginner)
 
@@ -61,9 +61,11 @@ Once the gateway is running and your email is added to the visibility list:
 5. Click **Add** or **Chat** to start a 1:1 conversation.
 6. Send "Hello" to trigger the assistant!
 
-## Public URL (Webhook-only)
+## Public URL (Webhook mode only)
 
-Google Chat webhooks require a public HTTPS endpoint. For security, **only expose the `/googlechat` path** to the internet. Keep the OpenClaw dashboard and other sensitive endpoints on your private network.
+Google Chat webhooks require a public HTTPS endpoint. **If you use Pub/Sub mode, no public URL is needed** — the gateway pulls events from GCP directly.
+
+For webhook mode, only expose the `/googlechat` path to the internet. Keep the OpenClaw dashboard and other sensitive endpoints on your private network.
 
 ### Option A: Tailscale Funnel (Recommended)
 
@@ -138,12 +140,32 @@ Configure your tunnel's ingress rules to only route the webhook path:
 
 ## How it works
 
+### Webhook mode (default)
+
 1. Google Chat sends webhook POSTs to the gateway. Each request includes an `Authorization: Bearer <token>` header.
    - OpenClaw verifies bearer auth before reading/parsing full webhook bodies when the header is present.
    - Google Workspace Add-on requests that carry `authorizationEventObject.systemIdToken` in the body are supported via a stricter pre-auth body budget.
 2. OpenClaw verifies the token against the configured `audienceType` + `audience`:
    - `audienceType: "app-url"` → audience is your HTTPS webhook URL.
    - `audienceType: "project-number"` → audience is the Cloud project number.
+
+### Pub/Sub mode
+
+When `pubsubSubscription` is configured, OpenClaw pulls events from a GCP Cloud Pub/Sub subscription instead of listening for webhook POSTs. This is useful when the gateway runs behind a firewall or NAT (no public URL needed).
+
+**Setup:**
+
+1. Create a Pub/Sub topic in your GCP project.
+2. Grant the **Pub/Sub Publisher** role on the topic to `chat-api-push@system.gserviceaccount.com`.
+3. Create a pull subscription on the topic.
+4. Grant the **Pub/Sub Subscriber** role on the subscription to your service account.
+5. In the [Google Chat app configuration](https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat), set **Connection settings** to **Cloud Pub/Sub** and enter your topic name.
+6. Set `channels.googlechat.pubsubSubscription` to the full subscription resource name (e.g. `projects/my-project/subscriptions/chat-events`).
+
+In Pub/Sub mode, `audienceType` and `audience` are not needed (authentication is handled by GCP IAM).
+
+### Message routing
+
 3. Messages are routed by space:
    - DMs use session key `agent:<agentId>:googlechat:dm:<spaceId>`.
    - Spaces use session key `agent:<agentId>:googlechat:group:<spaceId>`.
@@ -162,13 +184,14 @@ Use these identifiers for delivery and allowlists:
 
 ## Config highlights
 
+**Webhook mode** (explicit credentials):
+
 ```json5
 {
   channels: {
     googlechat: {
       enabled: true,
       serviceAccountFile: "/path/to/service-account.json",
-      // or serviceAccountRef: { source: "file", provider: "filemain", id: "/channels/googlechat/serviceAccount" }
       audienceType: "app-url",
       audience: "https://gateway.example.com/googlechat",
       webhookPath: "/googlechat",
@@ -194,11 +217,28 @@ Use these identifiers for delivery and allowlists:
 }
 ```
 
+**Pub/Sub mode on GCE** (Application Default Credentials):
+
+```json5
+{
+  channels: {
+    googlechat: {
+      enabled: true,
+      useApplicationDefaultCredentials: true,
+      pubsubSubscription: "projects/my-project/subscriptions/chat-events",
+      // pubsubMaxMessages: 10, // optional; max concurrent messages per pull
+    },
+  },
+}
+```
+
 Notes:
 
 - Service account credentials can also be passed inline with `serviceAccount` (JSON string).
 - `serviceAccountRef` is also supported (env/file SecretRef), including per-account refs under `channels.googlechat.accounts.<id>.serviceAccountRef`.
+- **Application Default Credentials (ADC)**: Set `useApplicationDefaultCredentials: true` to use the VM’s attached service account (GCE metadata server), Workload Identity, or gcloud default credentials. ADC is also auto-detected when the `GOOGLE_APPLICATION_CREDENTIALS` env var is set.
 - Default webhook path is `/googlechat` if `webhookPath` isn’t set.
+- `pubsubSubscription` switches to Pub/Sub pull mode. Use the full resource name (e.g. `projects/my-project/subscriptions/chat-events`).
 - `dangerouslyAllowNameMatching` re-enables mutable email principal matching for allowlists (break-glass compatibility mode).
 - Reactions are available via the `reactions` tool and `channels action` when `actions.reactions` is enabled.
 - `typingIndicator` supports `none`, `message` (default), and `reaction` (reaction requires user OAuth).

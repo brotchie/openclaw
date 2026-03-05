@@ -156,6 +156,9 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
           "audience",
           "webhookPath",
           "webhookUrl",
+          "useApplicationDefaultCredentials",
+          "pubsubSubscription",
+          "pubsubMaxMessages",
           "botUser",
           "name",
         ],
@@ -501,6 +504,11 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
         if (!enabled || !configured) {
           return [];
         }
+        // Pub/Sub mode uses IAM auth, not JWT audience verification.
+        const isPubSub = Boolean(entry.pubsubSubscription);
+        if (isPubSub) {
+          return [];
+        }
         const issues: ChannelStatusIssue[] = [];
         if (!entry.audience) {
           issues.push({
@@ -529,6 +537,7 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
       audience: snapshot.audience ?? null,
       webhookPath: snapshot.webhookPath ?? null,
       webhookUrl: snapshot.webhookUrl ?? null,
+      pubsubSubscription: snapshot.pubsubSubscription ?? null,
       running: snapshot.running ?? false,
       lastStartAt: snapshot.lastStartAt ?? null,
       lastStopAt: snapshot.lastStopAt ?? null,
@@ -547,6 +556,7 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
       audience: account.config.audience,
       webhookPath: account.config.webhookPath,
       webhookUrl: account.config.webhookUrl,
+      pubsubSubscription: account.config.pubsubSubscription,
       running: runtime?.running ?? false,
       lastStartAt: runtime?.lastStartAt ?? null,
       lastStopAt: runtime?.lastStopAt ?? null,
@@ -560,12 +570,16 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
   gateway: {
     startAccount: async (ctx) => {
       const account = ctx.account;
-      ctx.log?.info(`[${account.accountId}] starting Google Chat webhook`);
+      const isPubSub = Boolean(account.config.pubsubSubscription);
+      const modeLabel = isPubSub ? "Pub/Sub" : "webhook";
+      ctx.log?.info(`[${account.accountId}] starting Google Chat ${modeLabel}`);
       ctx.setStatus({
         accountId: account.accountId,
         running: true,
         lastStartAt: Date.now(),
-        webhookPath: resolveGoogleChatWebhookPath({ account }),
+        ...(isPubSub
+          ? { pubsubSubscription: account.config.pubsubSubscription }
+          : { webhookPath: resolveGoogleChatWebhookPath({ account }) }),
         audienceType: account.config.audienceType,
         audience: account.config.audience,
       });
@@ -576,6 +590,8 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
         abortSignal: ctx.abortSignal,
         webhookPath: account.config.webhookPath,
         webhookUrl: account.config.webhookUrl,
+        pubsubSubscription: account.config.pubsubSubscription,
+        pubsubMaxMessages: account.config.pubsubMaxMessages,
         statusSink: (patch) => ctx.setStatus({ accountId: account.accountId, ...patch }),
       });
       // Keep the promise pending until abort (webhook mode is passive).

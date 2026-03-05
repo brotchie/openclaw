@@ -110,6 +110,20 @@ export type GoogleChatAccountConfig = {
   typingIndicator?: "none" | "message" | "reaction";
   /** Outbound response prefix override for this channel/account. */
   responsePrefix?: string;
+  /**
+   * Use Application Default Credentials (ADC) for authentication.
+   * On GCE VMs, this uses the VM's attached service account via the metadata server.
+   * Also auto-detected when GOOGLE_APPLICATION_CREDENTIALS env var is set.
+   */
+  useApplicationDefaultCredentials?: boolean;
+  /**
+   * GCP Pub/Sub subscription resource name (e.g. projects/my-project/subscriptions/my-sub).
+   * When set, uses Pub/Sub pull instead of webhooks for receiving events.
+   * The service account must have roles/pubsub.subscriber on this subscription.
+   */
+  pubsubSubscription?: string;
+  /** Max concurrent messages the Pub/Sub client processes at once (default: 10). */
+  pubsubMaxMessages?: number;
 };
 
 export type GoogleChatConfig = {

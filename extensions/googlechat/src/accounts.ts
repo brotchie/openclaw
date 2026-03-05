@@ -7,7 +7,7 @@ import { isSecretRef } from "openclaw/plugin-sdk/googlechat";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/googlechat";
 import type { GoogleChatAccountConfig } from "./types.config.js";
 
-export type GoogleChatCredentialSource = "file" | "inline" | "env" | "none";
+export type GoogleChatCredentialSource = "file" | "inline" | "env" | "adc" | "none";
 
 export type ResolvedGoogleChatAccount = {
   accountId: string;
@@ -137,6 +137,17 @@ function resolveCredentialsFromConfig(params: {
     if (envFile) {
       return { credentialsFile: envFile, source: "env" };
     }
+  }
+
+  // ADC via GOOGLE_APPLICATION_CREDENTIALS env var (applies to all accounts).
+  const adcFile = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
+  if (adcFile) {
+    return { credentialsFile: adcFile, source: "adc" };
+  }
+
+  // Explicit opt-in to ADC (GCE metadata server, Workload Identity, etc.).
+  if (account.useApplicationDefaultCredentials === true) {
+    return { source: "adc" };
   }
 
   return { source: "none" };

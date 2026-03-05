@@ -5,6 +5,7 @@
   "description": "OpenClaw Google Chat channel plugin",
   "type": "module",
   "dependencies": {
+    "@google-cloud/pubsub": "^4.11.0",
     "google-auth-library": "^10.6.1"
   },
   "peerDependencies": {
@@ -26,7 +27,7 @@
       "detailLabel": "Google Chat",
       "docsPath": "/channels/googlechat",
       "docsLabel": "googlechat",
-      "blurb": "Google Workspace Chat app via HTTP webhooks.",
+      "blurb": "Google Workspace Chat app via HTTP webhooks or Pub/Sub.",
       "aliases": [
         "gchat",
         "google-chat"
