@@ -460,6 +460,7 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
     },
     threading: {
       resolveReplyToMode: ({ cfg }) => cfg.channels?.googlechat?.replyToMode ?? "off",
+      allowExplicitReplyTagsWhenOff: false,
       buildToolContext: ({ context, hasRepliedRef }) =>
         buildThreadToolContextFromMessageThreadOrReply({ context, hasRepliedRef }),
     },
