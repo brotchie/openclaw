@@ -22,7 +22,7 @@ function buildAuthKey(account: ResolvedGoogleChatAccount): string {
   if (account.credentials) {
     return `inline:${JSON.stringify(account.credentials)}`;
   }
-  return "none";
+  return `adc:${account.credentialSource}`;
 }
 
 function getAuthInstance(account: ResolvedGoogleChatAccount): GoogleAuth {
@@ -65,11 +65,27 @@ export async function getGoogleChatAccessToken(
   account: ResolvedGoogleChatAccount,
 ): Promise<string> {
   const auth = getAuthInstance(account);
-  const client = await auth.getClient();
-  const access = await client.getAccessToken();
+  let client;
+  try {
+    client = await auth.getClient();
+  } catch (err) {
+    throw new Error(
+      `Failed to initialize Google Chat auth client (credentialSource=${account.credentialSource}): ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  let access;
+  try {
+    access = await client.getAccessToken();
+  } catch (err) {
+    throw new Error(
+      `Could not refresh Google Chat access token (credentialSource=${account.credentialSource}): ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
   const token = typeof access === "string" ? access : access?.token;
   if (!token) {
-    throw new Error("Missing Google Chat access token");
+    throw new Error(
+      `Missing Google Chat access token (credentialSource=${account.credentialSource})`,
+    );
   }
   return token;
 }

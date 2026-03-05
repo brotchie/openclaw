@@ -572,7 +572,9 @@ export const googlechatPlugin: ChannelPlugin<ResolvedGoogleChatAccount> = {
       const account = ctx.account;
       const isPubSub = Boolean(account.config.pubsubSubscription);
       const modeLabel = isPubSub ? "Pub/Sub" : "webhook";
-      ctx.log?.info(`[${account.accountId}] starting Google Chat ${modeLabel}`);
+      ctx.log?.info(
+        `[${account.accountId}] starting Google Chat ${modeLabel} (credentials: ${account.credentialSource})`,
+      );
       ctx.setStatus({
         accountId: account.accountId,
         running: true,

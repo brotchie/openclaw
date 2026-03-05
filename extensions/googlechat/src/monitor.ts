@@ -469,7 +469,9 @@ async function deliverGoogleChatReply(params: {
         }
         statusSink?.({ lastOutboundAt: Date.now() });
       } catch (err) {
-        runtime.error?.(`Google Chat message send failed: ${String(err)}`);
+        runtime.error?.(
+          `Google Chat message send failed (credentialSource=${account.credentialSource}): ${String(err)}`,
+        );
       }
     }
   }
